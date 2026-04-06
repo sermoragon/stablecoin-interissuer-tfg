@@ -18,7 +18,8 @@ Base del proyecto preparada en Windows 10:
 ## Arranque del proyecto
 1. Abrir Docker Desktop
 
-En powershell
+En powershell:
+
 2. Levantar la BD:
 > docker compose up -d
 
