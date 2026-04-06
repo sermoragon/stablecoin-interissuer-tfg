@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+
+apps/api/node_modules/
+apps/api/dist/
+apps/api/coverage/
+
+.prisma/
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
