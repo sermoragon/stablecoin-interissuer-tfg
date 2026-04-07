@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.009.001.08">
+  <FICdtTrf>
+    <GrpHdr>
+      <MsgId>MSG-20260407-0001</MsgId>
+      <CreDtTm>2026-04-07T19:00:00Z</CreDtTm>
+      <NbOfTxs>1</NbOfTxs>
+      <SttlmInf>
+        <SttlmMtd>CLRG</SttlmMtd>
+      </SttlmInf>
+    </GrpHdr>
+    <CdtTrfTxInf>
+      <PmtId>
+        <InstrId>INSTR-20260407-0001</InstrId>
+        <EndToEndId>E2E-20260407-0001</EndToEndId>
+        <TxId>CORR-20260407-0001</TxId>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="EUR">125.50</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2026-04-07</IntrBkSttlmDt>
+      <DbtrAgt>
+        <FinInstnId>
+          <BICFI>ISSRAESMXXX</BICFI>
+        </FinInstnId>
+      </DbtrAgt>
+      <CdtrAgt>
+        <FinInstnId>
+          <BICFI>ISSRBESMXXX</BICFI>
+        </FinInstnId>
+      </CdtrAgt>
+      <Dbtr>
+        <Nm>Issuer A Treasury</Nm>
+      </Dbtr>
+      <Cdtr>
+        <Nm>Issuer B Treasury</Nm>
+      </Cdtr>
+      <RmtInf>
+        <Ustrd>TFG prototype payment</Ustrd>
+      </RmtInf>
+    </CdtTrfTxInf>
+  </FICdtTrf>
+</Document>

@@ -1,5 +1,4 @@
 export type BuildPacs009Input = {
-  businessMsgId: string;
   messageId: string;
   correlationId: string;
   instructionId: string;

@@ -1,5 +1,4 @@
 export type ParsedPacs009 = {
-  businessMsgId: string;
   messageId: string;
   correlationId: string;
   instructionId: string;
