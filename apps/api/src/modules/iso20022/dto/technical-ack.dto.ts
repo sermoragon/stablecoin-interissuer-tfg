@@ -1,5 +1,5 @@
 export type TechnicalAck = {
-  originalBusinessMsgId: string;
+  originalMessageId: string;
   originalCorrelationId: string;
   status: 'ACCEPTED' | 'REJECTED';
   timestamp: string;
