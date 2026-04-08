@@ -1,17 +1,32 @@
+# Dependencies
 node_modules/
+apps/api/node_modules/
+
+# Build outputs
 dist/
+apps/api/dist/
+
+# Test outputs
 coverage/
+apps/api/coverage/
+
+# Environment files
 .env
 .env.*
 !.env.example
 
-apps/api/node_modules/
-apps/api/dist/
-apps/api/coverage/
-
+# Prisma local/generated artifacts
 .prisma/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor files
 .DS_Store
 Thumbs.db
-
 .vscode/
 .idea/
