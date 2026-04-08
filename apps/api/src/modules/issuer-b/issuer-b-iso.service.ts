@@ -28,14 +28,30 @@ export class IssuerBIsoService {
     const ackXml = this.technicalAckBuilder.build(ack);
 
     await this.prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.create({
-        data: {
-          ...mappedPayment,
-          senderIssuer: Issuer.ISSUER_A,
-          receiverIssuer: Issuer.ISSUER_B,
-          status: PaymentStatus.ISO_INBOUND_RECEIVED,
-        },
+      const existingPayment = await tx.payment.findUnique({
+        where: { correlationId: parsed.correlationId },
       });
+
+      const payment = existingPayment
+        ? await tx.payment.update({
+            where: { id: existingPayment.id },
+            data: {
+              debtorName: parsed.debtorName,
+              creditorName: parsed.creditorName,
+              debtorBic: parsed.debtorBic,
+              creditorBic: parsed.creditorBic,
+              remittanceInfo: parsed.remittanceInfo,
+              status: PaymentStatus.ISO_INBOUND_RECEIVED,
+            },
+          })
+        : await tx.payment.create({
+            data: {
+              ...mappedPayment,
+              senderIssuer: Issuer.ISSUER_A,
+              receiverIssuer: Issuer.ISSUER_B,
+              status: PaymentStatus.ISO_INBOUND_RECEIVED,
+            },
+          });
 
       await tx.isoMessage.create({
         data: {
