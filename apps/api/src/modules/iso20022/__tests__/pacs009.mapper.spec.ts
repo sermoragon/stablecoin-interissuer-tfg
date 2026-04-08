@@ -34,7 +34,7 @@ describe('Pacs009ToPaymentMapper', () => {
       debtorBic: 'ISSRAESMXXX',
       creditorBic: 'ISSRBESMXXX',
       remittanceInfo: 'TFG prototype payment',
-      status: 'RECEIVED',
+      status: 'ISO_INBOUND_RECEIVED',
     });
   });
 });

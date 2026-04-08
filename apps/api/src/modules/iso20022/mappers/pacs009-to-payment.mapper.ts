@@ -15,7 +15,7 @@ export class Pacs009ToPaymentMapper {
       debtorBic: parsed.debtorBic,
       creditorBic: parsed.creditorBic,
       remittanceInfo: parsed.remittanceInfo,
-      status: 'RECEIVED',
+      status: 'ISO_INBOUND_RECEIVED',
     };
   }
 }
