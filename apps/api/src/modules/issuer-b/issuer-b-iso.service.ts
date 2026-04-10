@@ -18,7 +18,10 @@ export class IssuerBIsoService {
     const parsed = this.pacs009Parser.parse(xml);
     const mappedPayment = this.pacs009ToPaymentMapper.map(parsed);
 
+    const ackMessageId = `ACK-${parsed.messageId}`;
+    
     const ack = {
+      messageId: ackMessageId,
       originalMessageId: parsed.messageId,
       originalCorrelationId: parsed.correlationId,
       status: 'ACCEPTED' as const,
@@ -81,7 +84,7 @@ export class IssuerBIsoService {
           paymentId: payment.id,
           direction: IsoDirection.OUTBOUND,
           messageType: 'tech_ack',
-          messageId: `ACK-${parsed.messageId}`,
+          messageId: ack.messageId,
           relatedMessageId: parsed.messageId,
           correlationId: parsed.correlationId,
           sender: 'ISSUER_B',

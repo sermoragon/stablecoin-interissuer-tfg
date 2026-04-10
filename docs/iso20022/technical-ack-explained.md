@@ -22,6 +22,9 @@ Su función actual es confirmar técnicamente que `Issuer B` ha recibido y proce
 
 Elemento raíz del ACK.
 
+### `MessageId`
+Identificador propio del ACK.
+
 ### `OriginalMessageId`
 
 Identificador del mensaje original al que responde el ACK.

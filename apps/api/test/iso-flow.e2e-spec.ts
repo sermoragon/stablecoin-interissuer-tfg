@@ -6,50 +6,50 @@ import { PrismaService } from '../src/modules/persistence/prisma.service';
 import * as express from 'express';
 
 describe('ISO Flow E2E', () => {
-    let app: INestApplication;
-    let prisma: PrismaService;
+  let app: INestApplication;
+  let prisma: PrismaService;
 
-    beforeAll(async () => {
+  beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-        imports: [AppModule],
+      imports: [AppModule],
     }).compile();
 
     app = moduleRef.createNestApplication();
 
     app.useGlobalPipes(
-        new ValidationPipe({
+      new ValidationPipe({
         whitelist: true,
         transform: true,
         forbidNonWhitelisted: true,
-        }),
+      }),
     );
 
     app.use(
-        express.text({
+      express.text({
         type: ['application/xml', 'text/xml'],
         limit: '1mb',
-        }),
+      }),
     );
 
     await app.listen(3000);
 
     prisma = app.get(PrismaService);
-    });
+  });
 
-    beforeEach(async () => {
-        await prisma.isoMessage.deleteMany();
-        await prisma.paymentEvent.deleteMany();
-        await prisma.payment.deleteMany();
-    });
+  beforeEach(async () => {
+    await prisma.isoMessage.deleteMany();
+    await prisma.paymentEvent.deleteMany();
+    await prisma.payment.deleteMany();
+  });
 
-    afterAll(async () => {
-        await prisma.isoMessage.deleteMany();
-        await prisma.paymentEvent.deleteMany();
-        await prisma.payment.deleteMany();
-        await app.close();
-    });
+  afterAll(async () => {
+    await prisma.isoMessage.deleteMany();
+    await prisma.paymentEvent.deleteMany();
+    await prisma.payment.deleteMany();
+    await app.close();
+  });
 
-    it('should execute the simulated A -> B ISO flow and persist the full trace', async () => {
+  it('should execute the simulated A -> B ISO flow and persist the full trace', async () => {
     const payload = {
       instructionId: 'INSTR-E2E-0001',
       endToEndId: 'E2E-E2E-0001',
@@ -96,6 +96,39 @@ describe('ISO Flow E2E', () => {
       ['OUTBOUND', 'tech_ack'],
       ['INBOUND', 'tech_ack'],
     ]);
+
+    const outboundPacs009 = messages.find(
+      (m) => m.direction === 'OUTBOUND' && m.messageType === 'pacs.009',
+    );
+
+    const inboundPacs009 = messages.find(
+      (m) => m.direction === 'INBOUND' && m.messageType === 'pacs.009',
+    );
+
+    const outboundAck = messages.find(
+      (m) => m.direction === 'OUTBOUND' && m.messageType === 'tech_ack',
+    );
+
+    const inboundAck = messages.find(
+      (m) => m.direction === 'INBOUND' && m.messageType === 'tech_ack',
+    );
+
+    expect(outboundPacs009).toBeTruthy();
+    expect(inboundPacs009).toBeTruthy();
+    expect(outboundAck).toBeTruthy();
+    expect(inboundAck).toBeTruthy();
+
+    expect(outboundPacs009?.messageId).toBe('MSG-INSTR-E2E-0001');
+    expect(inboundPacs009?.messageId).toBe('MSG-INSTR-E2E-0001');
+
+    expect(outboundAck?.messageId).toBe(`ACK-${outboundPacs009?.messageId}`);
+    expect(inboundAck?.messageId).toBe(outboundAck?.messageId);
+
+    expect(outboundAck?.relatedMessageId).toBe(outboundPacs009?.messageId);
+    expect(inboundAck?.relatedMessageId).toBe(outboundPacs009?.messageId);
+
+    expect(outboundAck?.correlationId).toBe('CORR-E2E-0001');
+    expect(inboundAck?.correlationId).toBe('CORR-E2E-0001');
 
     const events = await prisma.paymentEvent.findMany({
       where: { paymentId: payment!.id },

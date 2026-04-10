@@ -5,12 +5,13 @@ import { TechnicalAck } from '../dto/technical-ack.dto';
 export class TechnicalAckBuilder {
   build(input: TechnicalAck): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
-<TechAck>
-  <OriginalMessageId>${this.escapeXml(input.originalMessageId)}</OriginalMessageId>
-  <OriginalCorrelationId>${this.escapeXml(input.originalCorrelationId)}</OriginalCorrelationId>
-  <Status>${this.escapeXml(input.status)}</Status>
-  <Timestamp>${this.escapeXml(input.timestamp)}</Timestamp>
-</TechAck>`;
+    <TechAck>
+      <MessageId>${this.escapeXml(input.messageId)}</MessageId>
+      <OriginalMessageId>${this.escapeXml(input.originalMessageId)}</OriginalMessageId>
+      <OriginalCorrelationId>${this.escapeXml(input.originalCorrelationId)}</OriginalCorrelationId>
+      <Status>${this.escapeXml(input.status)}</Status>
+      <Timestamp>${this.escapeXml(input.timestamp)}</Timestamp>
+    </TechAck>`;
   }
 
   private escapeXml(value: string): string {

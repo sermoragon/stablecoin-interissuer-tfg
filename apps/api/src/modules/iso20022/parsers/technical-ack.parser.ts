@@ -17,6 +17,11 @@ export class TechnicalAckParser {
       const parsed = this.parser.parse(xml);
       const techAck = parsed?.TechAck;
 
+      const messageId = this.getRequiredString(
+        techAck?.MessageId,
+        'TechAck.MessageId',
+      );
+
       const originalMessageId = this.getRequiredString(
         techAck?.OriginalMessageId,
         'TechAck.OriginalMessageId',
@@ -41,6 +46,7 @@ export class TechnicalAckParser {
       );
 
       return {
+        messageId,
         originalMessageId,
         originalCorrelationId,
         status,
