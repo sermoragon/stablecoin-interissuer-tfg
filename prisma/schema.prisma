@@ -27,6 +27,12 @@ enum IsoDirection {
   INBOUND
 }
 
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model Payment {
   id             String        @id @default(cuid())
   correlationId  String        @unique
@@ -81,4 +87,40 @@ model PaymentEvent {
   createdAt  DateTime @default(now())
 
   @@index([paymentId, createdAt])
+}
+
+model IdempotencyRecord {
+  id                  String            @id @default(cuid())
+  scope               String
+  idempotencyKey      String
+  requestHash         String
+  status              IdempotencyStatus @default(PROCESSING)
+
+  responseStatusCode  Int?
+  responseContentType String?
+  responseBody        String?           @db.Text
+
+  resourceType        String?
+  resourceId          String?
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  completedAt         DateTime?
+
+  @@unique([scope, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+model ReplayNonce {
+  id                 String   @id @default(cuid())
+  issuer             Issuer
+  nonce              String
+  idempotencyKey     String
+  requestHash        String
+  signatureTimestamp DateTime
+  createdAt          DateTime @default(now())
+
+  @@unique([issuer, nonce])
+  @@index([issuer, signatureTimestamp])
 }
