@@ -4,8 +4,8 @@ import request from 'supertest';
 import * as express from 'express';
 import { AddressInfo } from 'net';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/modules/persistence/prisma.service';
 import { Pacs009Builder } from '../src/modules/iso20022/builders/pacs009.builder';
+import { PrismaService } from '../src/modules/persistence/prisma.service';
 import { HmacService } from '../src/modules/security/hmac.service';
 
 describe('Point 3 - security and idempotency E2E', () => {
@@ -17,6 +17,9 @@ describe('Point 3 - security and idempotency E2E', () => {
   beforeAll(async () => {
     process.env.ISSUER_A_TO_ISSUER_B_HMAC_SECRET = 'test-secret';
     process.env.HMAC_MAX_CLOCK_SKEW_SECONDS = '300';
+    process.env.OUTBOX_POLLING_ENABLED = 'false';
+    process.env.OUTBOX_RETRY_BASE_DELAY_MS = '0';
+    process.env.OUTBOX_MAX_ATTEMPTS = '5';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -50,6 +53,7 @@ describe('Point 3 - security and idempotency E2E', () => {
   });
 
   beforeEach(async () => {
+    await prisma.outboxMessage.deleteMany();
     await prisma.replayNonce.deleteMany();
     await prisma.idempotencyRecord.deleteMany();
     await prisma.isoMessage.deleteMany();
@@ -59,6 +63,7 @@ describe('Point 3 - security and idempotency E2E', () => {
 
   afterAll(async () => {
     if (prisma) {
+      await prisma.outboxMessage.deleteMany();
       await prisma.replayNonce.deleteMany();
       await prisma.idempotencyRecord.deleteMany();
       await prisma.isoMessage.deleteMany();
@@ -103,6 +108,15 @@ describe('Point 3 - security and idempotency E2E', () => {
     expect(await prisma.payment.count()).toBe(1);
     expect(await prisma.isoMessage.count()).toBe(4);
     expect(await prisma.paymentEvent.count()).toBe(4);
+
+    const outboxMessages = await prisma.outboxMessage.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
+
+    expect(outboxMessages).toHaveLength(1);
+    expect(outboxMessages[0].status).toBe('DELIVERED');
+    expect(outboxMessages[0].attemptCount).toBe(1);
+    expect(outboxMessages[0].messageId).toBe(`MSG-${payload.instructionId}`);
   });
 
   it('should reject the same Idempotency-Key with a different simulate payload', async () => {
@@ -220,6 +234,7 @@ describe('Point 3 - security and idempotency E2E', () => {
     expect(await prisma.payment.count()).toBe(1);
     expect(await prisma.isoMessage.count()).toBe(2);
     expect(await prisma.paymentEvent.count()).toBe(2);
+    expect(await prisma.outboxMessage.count()).toBe(0);
   });
 
   function buildSampleXml(overrides?: {

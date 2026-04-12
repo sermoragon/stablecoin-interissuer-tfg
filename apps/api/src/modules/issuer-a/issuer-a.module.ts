@@ -4,14 +4,14 @@ import { PersistenceModule } from '../persistence/persistence.module';
 import { IssuerAPaymentsController } from './issuer-a-payments.controller';
 import { IssuerAPaymentsService } from './issuer-a-payments.service';
 import { IdempotencyModule } from '../idempotency/idempotency.module';
-import { SecurityModule } from '../security/security.module';
+import { OutboxModule } from '../outbox/outbox.module';
 
 @Module({
   imports: [
     PersistenceModule,
     Iso20022Module,
     IdempotencyModule,
-    SecurityModule,
+    OutboxModule,
   ],
   controllers: [IssuerAPaymentsController],
   providers: [IssuerAPaymentsService],

@@ -33,6 +33,13 @@ enum IdempotencyStatus {
   FAILED
 }
 
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+}
+
 model Payment {
   id             String        @id @default(cuid())
   correlationId  String        @unique
@@ -55,6 +62,7 @@ model Payment {
 
   messages       IsoMessage[]
   events         PaymentEvent[]
+  outboxMessages OutboxMessage[]
 
   @@index([status, createdAt])
 }
@@ -123,4 +131,36 @@ model ReplayNonce {
 
   @@unique([issuer, nonce])
   @@index([issuer, signatureTimestamp])
+}
+
+model OutboxMessage {
+  id               String       @id @default(cuid())
+  paymentId        String
+  payment          Payment      @relation(fields: [paymentId], references: [id])
+
+  messageId        String       @unique
+  correlationId    String
+  messageType      String
+  httpMethod       String
+  targetPath       String
+  contentType      String
+  issuerId         String
+  idempotencyKey   String
+  payload          String       @db.Text
+
+  status           OutboxStatus @default(PENDING)
+  attemptCount     Int          @default(0)
+  maxAttempts      Int          @default(5)
+  nextAttemptAt    DateTime     @default(now())
+  lastAttemptAt    DateTime?
+  deliveredAt      DateTime?
+  lastHttpStatus   Int?
+  lastError        String?      @db.Text
+  lastResponseBody String?      @db.Text
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([paymentId, createdAt])
 }

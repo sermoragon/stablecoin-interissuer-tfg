@@ -13,6 +13,9 @@ describe('ISO Flow E2E', () => {
   beforeAll(async () => {
     process.env.ISSUER_A_TO_ISSUER_B_HMAC_SECRET = 'test-secret';
     process.env.HMAC_MAX_CLOCK_SKEW_SECONDS = '300';
+    process.env.OUTBOX_POLLING_ENABLED = 'false';
+    process.env.OUTBOX_RETRY_BASE_DELAY_MS = '0';
+    process.env.OUTBOX_MAX_ATTEMPTS = '5';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -44,6 +47,7 @@ describe('ISO Flow E2E', () => {
   });
 
   beforeEach(async () => {
+    await prisma.outboxMessage.deleteMany();
     await prisma.replayNonce.deleteMany();
     await prisma.idempotencyRecord.deleteMany();
     await prisma.isoMessage.deleteMany();
@@ -53,6 +57,7 @@ describe('ISO Flow E2E', () => {
 
   afterAll(async () => {
     if (prisma) {
+      await prisma.outboxMessage.deleteMany();
       await prisma.replayNonce.deleteMany();
       await prisma.idempotencyRecord.deleteMany();
       await prisma.isoMessage.deleteMany();
@@ -109,6 +114,11 @@ describe('ISO Flow E2E', () => {
     });
 
     const events = await prisma.paymentEvent.findMany({
+      where: { paymentId: payment.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const outboxMessages = await prisma.outboxMessage.findMany({
       where: { paymentId: payment.id },
       orderBy: { createdAt: 'asc' },
     });
@@ -170,12 +180,20 @@ describe('ISO Flow E2E', () => {
     expect(outboundAck?.correlationId).toBe(payload.correlationId);
     expect(inboundAck?.correlationId).toBe(payload.correlationId);
 
+    expect(outboxMessages).toHaveLength(1);
+    expect(outboxMessages[0].messageId).toBe(`MSG-${payload.instructionId}`);
+    expect(outboxMessages[0].correlationId).toBe(payload.correlationId);
+    expect(outboxMessages[0].status).toBe('DELIVERED');
+    expect(outboxMessages[0].attemptCount).toBe(1);
+
     const paymentCount = await prisma.payment.count();
     const isoMessageCount = await prisma.isoMessage.count();
     const paymentEventCount = await prisma.paymentEvent.count();
+    const outboxCount = await prisma.outboxMessage.count();
 
     expect(paymentCount).toBe(1);
     expect(isoMessageCount).toBe(4);
     expect(paymentEventCount).toBe(4);
+    expect(outboxCount).toBe(1);
   });
 });
