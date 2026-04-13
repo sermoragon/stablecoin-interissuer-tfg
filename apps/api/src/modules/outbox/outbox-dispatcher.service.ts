@@ -34,7 +34,9 @@ export class OutboxDispatcherService
     private readonly technicalAckParser: TechnicalAckParser,
   ) {}
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
+    await this.recoverStaleProcessingMessages();
+
     if (!this.isPollingEnabled()) {
       return;
     }
@@ -50,7 +52,33 @@ export class OutboxDispatcherService
     }
   }
 
+  async recoverStaleProcessingMessages(): Promise<number> {
+    const cutoff = new Date(Date.now() - this.getProcessingTimeoutMs());
+
+    const result = await this.prisma.outboxMessage.updateMany({
+      where: {
+        status: OutboxStatus.PROCESSING,
+        lastAttemptAt: {
+          lt: cutoff,
+        },
+      },
+      data: {
+        status: OutboxStatus.PENDING,
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger.warn(
+        `Recovered ${result.count} stale PROCESSING outbox message(s)`,
+      );
+    }
+
+    return result.count;
+  }
+
   async processDueMessages(limit = 10): Promise<number> {
+    await this.recoverStaleProcessingMessages();
+
     const dueMessages = await this.prisma.outboxMessage.findMany({
       where: {
         status: OutboxStatus.PENDING,
@@ -175,16 +203,18 @@ export class OutboxDispatcherService
       responseBody = await response.text();
 
       if (!response.ok) {
-        await this.rescheduleAfterFailure(
-          message,
-          `Issuer B responded with HTTP ${response.status}`,
-          responseStatus,
+        const retryable = this.isRetryableHttpStatus(response.status);
+
+        await this.handleDeliveryFailure(message, {
+          errorMessage: `Issuer B responded with HTTP ${response.status}`,
+          statusCode: responseStatus,
           responseBody,
-        );
+          retryable,
+        });
 
         return {
           kind: 'queued',
-          reason: 'HTTP_ERROR',
+          reason: retryable ? 'HTTP_RETRYABLE_ERROR' : 'HTTP_FINAL_ERROR',
         };
       }
 
@@ -268,12 +298,12 @@ export class OutboxDispatcherService
         `Outbox dispatch failed for ${message.messageId}: ${errorMessage}`,
       );
 
-      await this.rescheduleAfterFailure(
-        message,
+      await this.handleDeliveryFailure(message, {
         errorMessage,
-        responseStatus,
+        statusCode: responseStatus,
         responseBody,
-      );
+        retryable: true,
+      });
 
       return {
         kind: 'queued',
@@ -282,13 +312,17 @@ export class OutboxDispatcherService
     }
   }
 
-  private async rescheduleAfterFailure(
+  private async handleDeliveryFailure(
     message: OutboxMessage,
-    errorMessage: string,
-    statusCode?: number,
-    responseBody?: string,
+    args: {
+      errorMessage: string;
+      retryable: boolean;
+      statusCode?: number;
+      responseBody?: string;
+    },
   ): Promise<void> {
-    const shouldFailFinal = message.attemptCount >= message.maxAttempts;
+    const exhaustedAttempts = message.attemptCount >= message.maxAttempts;
+    const shouldFailFinal = !args.retryable || exhaustedAttempts;
 
     const data: {
       status: OutboxStatus;
@@ -298,15 +332,15 @@ export class OutboxDispatcherService
       nextAttemptAt?: Date;
     } = {
       status: shouldFailFinal ? OutboxStatus.FAILED : OutboxStatus.PENDING,
-      lastError: errorMessage,
+      lastError: args.errorMessage,
     };
 
-    if (typeof statusCode === 'number') {
-      data.lastHttpStatus = statusCode;
+    if (typeof args.statusCode === 'number') {
+      data.lastHttpStatus = args.statusCode;
     }
 
-    if (typeof responseBody === 'string' && responseBody.length > 0) {
-      data.lastResponseBody = responseBody;
+    if (typeof args.responseBody === 'string' && args.responseBody.length > 0) {
+      data.lastResponseBody = args.responseBody;
     }
 
     if (!shouldFailFinal) {
@@ -323,6 +357,10 @@ export class OutboxDispatcherService
       where: { id: message.id },
       data,
     });
+  }
+
+  private isRetryableHttpStatus(status: number): boolean {
+    return status >= 500 || status === 408 || status === 429;
   }
 
   private extractAckStatus(responseBody?: string | null): string | undefined {
@@ -361,6 +399,19 @@ export class OutboxDispatcherService
     if (!Number.isFinite(parsed) || parsed < 0) {
       throw new InternalServerErrorException(
         'OUTBOX_RETRY_BASE_DELAY_MS must be zero or a positive number',
+      );
+    }
+
+    return parsed;
+  }
+
+  private getProcessingTimeoutMs(): number {
+    const rawValue = process.env.OUTBOX_PROCESSING_TIMEOUT_MS ?? '15000';
+    const parsed = Number(rawValue);
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      throw new InternalServerErrorException(
+        'OUTBOX_PROCESSING_TIMEOUT_MS must be a positive number',
       );
     }
 

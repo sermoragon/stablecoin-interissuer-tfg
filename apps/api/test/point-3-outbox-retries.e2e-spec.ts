@@ -18,6 +18,7 @@ describe('Point 3 - outbox and retries E2E', () => {
     process.env.OUTBOX_POLLING_ENABLED = 'false';
     process.env.OUTBOX_RETRY_BASE_DELAY_MS = '0';
     process.env.OUTBOX_MAX_ATTEMPTS = '5';
+    process.env.OUTBOX_PROCESSING_TIMEOUT_MS = '1000';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -158,6 +159,69 @@ describe('Point 3 - outbox and retries E2E', () => {
       expect(await prisma.payment.count()).toBe(1);
       expect(await prisma.isoMessage.count()).toBe(4);
       expect(await prisma.paymentEvent.count()).toBe(4);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('should mark the outbox message as failed on a non-retryable HTTP error', async () => {
+    const payload = {
+      instructionId: 'INSTR-RETRY-0002',
+      endToEndId: 'E2E-RETRY-0002',
+      correlationId: 'CORR-RETRY-0002',
+      amount: '125.50',
+      currency: 'EUR',
+      settlementDate: '2026-04-08',
+      debtorName: 'Issuer A Treasury',
+      creditorName: 'Issuer B Treasury',
+      debtorBic: 'ISSRAESMXXX',
+      creditorBic: 'ISSRBESMXXX',
+      remittanceInfo: 'TFG point 3 non retryable error',
+    };
+
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () => 'Bad Request',
+      } as Response);
+
+    try {
+      const response = await request(app.getHttpServer())
+        .post('/issuer-a/payments/simulate')
+        .set('Idempotency-Key', 'SIM-RETRY-0002')
+        .send(payload)
+        .expect(201);
+
+      expect(response.body).toMatchObject({
+        paymentId: expect.any(String),
+        messageId: `MSG-${payload.instructionId}`,
+        correlationId: payload.correlationId,
+        deliveryStatus: 'QUEUED',
+        outboxMessageId: expect.any(String),
+      });
+
+      const payment = await prisma.payment.findUniqueOrThrow({
+        where: { id: response.body.paymentId },
+      });
+
+      const outbox = await prisma.outboxMessage.findUniqueOrThrow({
+        where: { id: response.body.outboxMessageId },
+      });
+
+      expect(payment.status).toBe('ISO_OUTBOUND_BUILT');
+      expect(outbox.status).toBe('FAILED');
+      expect(outbox.attemptCount).toBe(1);
+      expect(outbox.lastHttpStatus).toBe(400);
+      expect(outbox.lastError).toContain('HTTP 400');
+
+      const processed = await dispatcher.processDueMessages();
+      expect(processed).toBe(0);
+
+      expect(await prisma.payment.count()).toBe(1);
+      expect(await prisma.isoMessage.count()).toBe(1);
+      expect(await prisma.paymentEvent.count()).toBe(1);
     } finally {
       fetchSpy.mockRestore();
     }
