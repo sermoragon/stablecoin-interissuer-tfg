@@ -17,7 +17,18 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "xrpl:fund": "ts-node src/modules/xrpl/scripts/fund-testnet-wallets.ts",
+    "xrpl:balances": "ts-node src/modules/xrpl/scripts/check-xrpl-balances.ts",
+    "xrpl:fund:issuers": "ts-node src/modules/xrpl/scripts/fund-issuer-cold-wallets.ts",
+    "xrpl:setup:ious": "ts-node src/modules/xrpl/scripts/setup-issued-currencies.ts",
+    "xrpl:ious:balances": "ts-node src/modules/xrpl/scripts/check-issued-currency-balances.ts",
+    "xrpl:issuers:rippling": "ts-node src/modules/xrpl/scripts/configure-issuer-rippling.ts",
+    "xrpl:fund:market-maker": "ts-node src/modules/xrpl/scripts/fund-market-maker-wallet.ts",
+    "xrpl:setup:market-maker": "ts-node src/modules/xrpl/scripts/setup-market-maker-liquidity.ts",
+    "xrpl:dex:create-offers": "ts-node src/modules/xrpl/scripts/create-market-maker-offers.ts",
+    "xrpl:dex:books": "ts-node src/modules/xrpl/scripts/check-dex-order-books.ts",
+    "xrpl:pay:cross-currency": "ts-node src/modules/xrpl/scripts/execute-cross-currency-payment.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -27,6 +38,7 @@
     "axios": "^1.14.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
     "fast-xml-parser": "^5.5.10",
     "nestjs-pino": "^4.6.1",
     "pino": "^10.3.1",
@@ -36,6 +48,7 @@
     "rxjs": "^7.8.1",
     "uuid": "^13.0.0",
     "xmlbuilder2": "^4.0.3",
+    "xrpl": "4.6.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
