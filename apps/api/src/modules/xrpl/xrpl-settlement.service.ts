@@ -147,9 +147,13 @@ export class XrplSettlementService {
       throw new NotFoundException(`Payment ${input.paymentId} not found`);
     }
 
-    if (payment.status !== PaymentStatus.ISO_ACK_ACCEPTED) {
+    const isAllowedStatus =
+      payment.status === PaymentStatus.ISO_ACK_ACCEPTED ||
+      payment.status === PaymentStatus.XRPL_SETTLEMENT_REQUESTED;
+
+    if (!isAllowedStatus) {
       throw new BadRequestException(
-        `Payment must be ISO_ACK_ACCEPTED before XRPL settlement. Current status: ${payment.status}`,
+        `Payment must be ISO_ACK_ACCEPTED or XRPL_SETTLEMENT_REQUESTED before XRPL settlement. Current status: ${payment.status}`,
       );
     }
 
